@@ -1,0 +1,90 @@
+apiVersion: apps/v1beta1
+kind: StatefulSet
+metadata:
+  labels:
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    component: {{ template "fullname" . }}
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+  name: {{ template "shortname" . }}
+  namespace: {{ .Values.Namespace | default "default" }}
+spec:
+  serviceName: vault
+  replicas: {{ .Values.Replicas | default 1 }}
+  template:
+    metadata:
+      labels:
+        chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+        component: {{ template "fullname" . }}
+        heritage: {{ .Release.Service | quote }}
+        release: {{ .Release.Name | quote }}
+      annotations:
+        pod.alpha.kubernetes.io/init-containers: '[
+          {
+            "name": "initialize",
+            "image": "busybox",
+            "command": [ "sh", "/boot/initialize.sh" ],
+            "volumeMounts": [
+              {
+                "name": "{{ template "shortname" . }}",
+                "mountPath": "/boot"
+              }
+            ]
+          }
+        ]'
+    spec:
+      containers:
+      - name: vault
+        image: {{ .Values.Image.Name }}:{{ .Values.Image.Tag }}
+        command:
+        - vault
+        - server
+        - -config=/vault/config/vault.json
+        readinessProbe:
+          tcpSocket:
+            port: 8200
+          initialDelaySeconds: 5
+          periodSeconds: 10
+        ports:
+        - containerPort: {{ .Values.Port.Container }}
+          name: vaultport
+          protocol: TCP
+        securityContext:
+          capabilities:
+            add:
+            - IPC_LOCK
+        volumeMounts:
+        - name: config
+          mountPath: /vault/config
+        - name: file-backend
+          mountPath: /vault/file
+     {{- if .Values.Image.PullSecret }}
+      imagePullSecrets:
+      - name: {{ .Values.Image.PullSecret }}
+     {{- end }}
+      nodeSelector:
+      {{- if .Values.Scheduling.NodeSelector }}
+      {{- range $key, $value := .Values.Scheduling.NodeSelector }}
+        {{ $key }}: {{ $value }}
+      {{- end }}
+      {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          name: {{ template "shortname" . }}
+{{- if .Values.Persistence.Enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: file-backend
+      annotations:
+        volume.beta.kubernetes.io/storage-class: {{ .Values.Persistence.StorageClass }}
+    spec:
+      accessModes:
+      - {{ .Values.Persistence.AccessMode | quote }}
+      resources:
+        requests:
+          storage: {{ .Values.Persistence.Size | quote }}
+{{- else }}
+      - name: file-backend
+        emptyDir: {}
+{{- end -}}

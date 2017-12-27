@@ -1,0 +1,12 @@
+apiVersion: etcd.database.coreos.com/v1beta2
+kind: EtcdCluster
+metadata:
+  name: {{ template "shortname" . }}-etcd
+  labels:
+    chart: {{ .Chart.Name }}
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+    component: {{ template "fullname" . }}
+spec:
+  size: {{ .Values.etcd.Replicas }}
+  version: {{ .Values.etcd.Version }}

@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ template "shortname" . }}
+  namespace: {{ .Values.Namespace | default "default" }}
+data:
+  vault.json: |
+{{ include (print $.Template.BasePath "/vault/config/_vault.json.tpl") . | indent 4 }}
+  initialize.sh: |
+{{ include (print $.Template.BasePath "/boot/_initialize.sh.tpl") . | indent 4 }}

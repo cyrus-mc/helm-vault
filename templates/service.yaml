@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    chart: {{ .Chart.Name }}-{{ .Chart.Version }}
+    heritage: {{ .Release.Service | quote }}
+    release: {{ .Release.Name | quote }}
+  name: {{ template "shortname" . }}
+  namespace: {{ .Values.Namespace | default "default" }}
+spec:
+  ports:
+  - name: vaultport
+    port: {{ .Values.Port.Service }}
+    protocol: TCP
+    targetPort:  {{ .Values.Port.Container }}
+  selector:
+    component: {{ template "fullname" . }}
+  type: {{ .Values.Service.Type }}
